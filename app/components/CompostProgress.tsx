@@ -1,8 +1,10 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { Check } from "lucide-react";
 import type { SensorReading } from "@/app/data/mockSensorData";
+import { BIN_INFO } from "@/app/data/mockSensorData";
 import { getDecompositionStage } from "@/app/lib/compostLogic";
+import { Card, CardTitle, Note, ProgressBar } from "@/app/components/ui";
 
 interface CompostProgressProps {
   data: SensorReading;
@@ -22,109 +24,83 @@ export default function CompostProgress({ data }: CompostProgressProps) {
   const stage = getDecompositionStage(data);
   const stageIndex = STAGES.indexOf(stage);
 
-  return (
-    <div className="rounded-2xl bg-[#0d1f0d]/80 border border-green-800/30 p-5 shadow-xl shadow-black/20">
-      <h2 className="text-sm font-bold text-slate-100 mb-1">Compost Progress</h2>
-      <p className="text-[11px] text-slate-500 mb-5">
-        Weight-based decomposition tracking
-      </p>
+  const stats = [
+    { label: "Initial weight", value: data.initialWeight.toFixed(2), unit: "kg" },
+    { label: "Current weight", value: data.currentWeight.toFixed(2), unit: "kg" },
+    { label: "Weight reduced", value: weightReduced.toFixed(2), unit: "kg" },
+    { label: "Batch day", value: String(BIN_INFO.batchDay), unit: `of ~${BIN_INFO.expectedDays}` },
+  ];
 
-      {/* Weight stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        {[
-          { label: "Initial Weight", value: `${data.initialWeight.toFixed(2)} kg`, sub: "Starting mass" },
-          { label: "Current Weight", value: `${data.currentWeight.toFixed(2)} kg`, sub: "Current mass", highlight: true },
-          { label: "Weight Reduced", value: `${weightReduced.toFixed(2)} kg`, sub: "Mass loss" },
-          { label: "Reduction", value: `${reductionPct.toFixed(1)}%`, sub: "Of initial", highlight: true },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className={`rounded-xl p-3 border ${
-              item.highlight
-                ? "border-green-700/40 bg-green-900/20"
-                : "border-white/5 bg-white/[0.02]"
-            }`}
-          >
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{item.label}</p>
-            <p className={`text-lg font-black ${item.highlight ? "text-green-400" : "text-slate-200"}`}>
-              {item.value}
-            </p>
-            <p className="text-[10px] text-slate-600 mt-0.5">{item.sub}</p>
+  return (
+    <Card>
+      <CardTitle title="Compost progress" description="Weight-based decomposition tracking" />
+
+      <dl className="grid grid-cols-2 md:grid-cols-4 gap-px rounded-lg overflow-hidden border border-line bg-line">
+        {stats.map((s) => (
+          <div key={s.label} className="bg-card p-4">
+            <dt className="text-xs text-muted">{s.label}</dt>
+            <dd className="mt-1">
+              <span className="text-xl font-semibold tracking-tight text-fg tabular-nums">{s.value}</span>
+              <span className="text-xs text-muted ml-1">{s.unit}</span>
+            </dd>
           </div>
         ))}
-      </div>
+      </dl>
 
-      {/* Progress bar */}
-      <div className="mb-5">
-        <div className="flex justify-between text-[11px] text-slate-400 mb-1.5">
-          <span>0 kg</span>
-          <span className="font-bold text-green-400">{reductionPct.toFixed(1)}% reduced</span>
-          <span>{data.initialWeight.toFixed(2)} kg</span>
+      <div className="mt-6">
+        <div className="flex justify-between text-xs mb-2">
+          <span className="text-muted">Weight reduction</span>
+          <span className="font-medium text-fg tabular-nums">{reductionPct.toFixed(1)}%</span>
         </div>
-        <div className="h-3 rounded-full bg-slate-800/60 border border-slate-700/30 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-green-600 to-lime-400 transition-all duration-1000 ease-out relative"
-            style={{ width: `${Math.min(reductionPct, 100)}%` }}
-          >
-            <div className="absolute inset-0 bg-white/10 rounded-full" />
-          </div>
-        </div>
+        <ProgressBar value={reductionPct} />
       </div>
 
-      {/* Stage tracker */}
-      <div className="mb-4">
-        <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-3 font-semibold">
-          Decomposition Stage
+      {/* Stage stepper */}
+      <div className="mt-8">
+        <p className="text-xs text-muted mb-4">
+          Stage: <span className="font-medium text-fg">{stage}</span>
         </p>
-        <div className="relative">
-          {/* Connector line */}
-          <div className="absolute top-4 left-4 right-4 h-0.5 bg-slate-800" />
-          <div
-            className="absolute top-4 left-4 h-0.5 bg-gradient-to-r from-green-600 to-lime-400 transition-all duration-700"
-            style={{ width: `calc(${(stageIndex / (STAGES.length - 1)) * 100}% - 8px)` }}
-          />
-
-          <div className="relative flex justify-between">
-            {STAGES.map((s, idx) => {
-              const isActive = idx === stageIndex;
-              const isPast = idx < stageIndex;
-              return (
-                <div key={s} className="flex flex-col items-center gap-1.5" style={{ width: "20%" }}>
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center border-2 text-[10px] font-bold transition-all ${
-                      isActive
-                        ? "border-green-400 bg-green-900/60 text-green-300 shadow-md shadow-green-900/30 scale-110"
-                        : isPast
-                        ? "border-green-700 bg-green-900/30 text-green-500"
-                        : "border-slate-700 bg-slate-800/40 text-slate-600"
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                  <p
-                    className={`text-[9px] text-center leading-tight font-medium hidden sm:block ${
-                      isActive ? "text-green-300" : isPast ? "text-slate-500" : "text-slate-600"
-                    }`}
-                  >
-                    {s}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <p className="mt-4 text-center text-sm font-bold text-green-400">
-          Current: {stage}
-        </p>
+        <ol className="grid grid-cols-5">
+          {STAGES.map((s, idx) => {
+            const isActive = idx === stageIndex;
+            const isPast = idx < stageIndex;
+            return (
+              <li key={s} className="relative flex flex-col items-center text-center">
+                {idx > 0 && (
+                  <span
+                    className={`absolute top-3 right-1/2 w-full h-px ${idx <= stageIndex ? "bg-accent" : "bg-line"}`}
+                  />
+                )}
+                <span
+                  className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium border ${
+                    isActive
+                      ? "bg-accent border-accent text-on-accent"
+                      : isPast
+                      ? "bg-accent-soft border-accent text-accent"
+                      : "bg-card border-line text-faint"
+                  }`}
+                >
+                  {isPast ? <Check className="w-3 h-3" /> : idx + 1}
+                </span>
+                <span
+                  className={`mt-2 text-[11px] leading-tight hidden sm:block px-1 ${
+                    isActive ? "text-fg font-medium" : "text-muted"
+                  }`}
+                >
+                  {s}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
       </div>
 
-      {/* Disclaimer */}
-      <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-950/30 border border-blue-800/30">
-        <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-blue-300/80 leading-relaxed">
-          Weight reduction indicates material loss and decomposition progress, but <strong>does not alone confirm compost maturity</strong>. Temperature, moisture, and gas conditions should all be considered.
-        </p>
+      <div className="mt-6">
+        <Note>
+          Weight reduction shows material loss and progress, but does not by itself confirm compost maturity.
+          Temperature, moisture and gas readings should all be considered.
+        </Note>
       </div>
-    </div>
+    </Card>
   );
 }

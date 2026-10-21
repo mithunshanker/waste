@@ -5,223 +5,229 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
+  ReferenceArea,
 } from "recharts";
-import type { HistoricalPoint } from "@/app/data/mockSensorData";
-import { HISTORY_6H, HISTORY_24H, HISTORY_7D } from "@/app/data/mockSensorData";
+import type { History, HistoricalPoint, HistoryRange } from "@/app/data/mockSensorData";
+import { THRESHOLDS } from "@/app/data/mockSensorData";
+import { Card, CardTitle, useChartColors, type ChartColors } from "@/app/components/ui";
 
-type Range = "6H" | "24H" | "7D";
+const RANGES: HistoryRange[] = ["6H", "24H", "7D"];
+const CHART_HEIGHT = 200;
+const GAS_UNITS = { co2: " ppm", methane: " ppm", ammonia: " ppm", h2s: " ppm" };
 
-const RANGE_DATA: Record<Range, HistoricalPoint[]> = {
-  "6H": HISTORY_6H,
-  "24H": HISTORY_24H,
-  "7D": HISTORY_7D,
+const SERIES_LABEL: Record<string, string> = {
+  temperature: "Temperature",
+  moisture: "Moisture",
+  weight: "Weight",
+  co2: "CO₂",
+  methane: "CH₄",
+  ammonia: "NH₃",
+  h2s: "H₂S",
 };
 
-// Custom dark tooltip
+interface TooltipEntry {
+  color: string;
+  dataKey: string;
+  value: number;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTooltip({ active, payload, label }: any) {
+function ChartTooltip({ active, payload, label, units = {} }: any) {
   if (!active || !payload?.length) return null;
+  const unit = units as Record<string, string>;
   return (
-    <div className="bg-[#0d1f0d] border border-green-800/50 rounded-xl px-4 py-3 shadow-xl text-sm">
-      <p className="text-slate-400 text-[11px] mb-2 font-mono">{label}</p>
-      {payload.map((entry: { color: string; name: string; value: number }) => (
-        <div key={entry.name} className="flex items-center gap-2 mb-1">
+    <div className="rounded-lg border border-line bg-card px-3 py-2 shadow-sm text-xs">
+      <p className="text-muted mb-1">{label}</p>
+      {(payload as TooltipEntry[]).map((entry) => (
+        <div key={entry.dataKey} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: entry.color }} />
-          <span className="text-slate-300 text-[12px] capitalize">{entry.name}:</span>
-          <span className="text-white font-bold text-[12px]">{entry.value}</span>
+          <span className="text-muted">{SERIES_LABEL[entry.dataKey] ?? entry.dataKey}</span>
+          <span className="ml-auto pl-3 font-medium text-fg tabular-nums">
+            {entry.value}
+            {unit[entry.dataKey] ?? ""}
+          </span>
         </div>
       ))}
     </div>
   );
 }
 
-function RangeButton({
-  range,
-  active,
-  onClick,
-}: {
-  range: Range;
-  active: boolean;
-  onClick: () => void;
-}) {
+function RangeSwitch({ range, onChange }: { range: HistoryRange; onChange: (r: HistoryRange) => void }) {
   return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1 rounded-lg text-[12px] font-bold transition-all ${
-        active
-          ? "bg-green-600 text-white shadow"
-          : "text-slate-400 hover:text-green-300 hover:bg-green-900/30"
-      }`}
-    >
-      {range}
-    </button>
+    <div className="inline-flex rounded-lg border border-line p-0.5 bg-subtle shrink-0">
+      {RANGES.map((r) => (
+        <button
+          key={r}
+          onClick={() => onChange(r)}
+          className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+            range === r ? "bg-card text-fg shadow-sm" : "text-muted hover:text-fg"
+          }`}
+        >
+          {r}
+        </button>
+      ))}
+    </div>
   );
 }
 
 interface ChartCardProps {
   title: string;
   subtitle?: string;
-  children: (data: HistoricalPoint[], range: Range) => React.ReactNode;
+  history: History | null;
+  legend?: { label: string; color: string }[];
+  children: (data: HistoricalPoint[], colors: ChartColors) => React.ReactElement;
 }
 
-function ChartCard({ title, subtitle, children }: ChartCardProps) {
-  const [range, setRange] = useState<Range>("24H");
-  const data = RANGE_DATA[range];
+function ChartCard({ title, subtitle, history, legend, children }: ChartCardProps) {
+  const [range, setRange] = useState<HistoryRange>("24H");
+  const colors = useChartColors();
 
   return (
-    <div className="rounded-2xl bg-[#0d1f0d]/80 border border-green-800/30 p-5 shadow-xl shadow-black/20">
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <div>
-          <h3 className="text-sm font-bold text-slate-100">{title}</h3>
-          {subtitle && <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>}
-        </div>
-        <div className="flex items-center gap-1 bg-slate-900/60 rounded-lg p-1 border border-slate-700/30">
-          {(["6H", "24H", "7D"] as Range[]).map((r) => (
-            <RangeButton key={r} range={r} active={range === r} onClick={() => setRange(r)} />
+    <Card className="min-w-0">
+      <CardTitle title={title} description={subtitle} right={<RangeSwitch range={range} onChange={setRange} />} />
+      <div style={{ height: CHART_HEIGHT }}>
+        {history ? (
+          <ResponsiveContainer width="100%" height="100%">
+            {children(history[range], colors)}
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full rounded-lg bg-subtle animate-pulse" />
+        )}
+      </div>
+      {legend && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-muted">
+          {legend.map((l) => (
+            <span key={l.label} className="inline-flex items-center gap-1.5">
+              <span className="w-2.5 h-0.5 rounded-full" style={{ background: l.color }} />
+              {l.label}
+            </span>
           ))}
         </div>
-      </div>
-      {children(data, range)}
-    </div>
+      )}
+    </Card>
   );
 }
 
-export function TemperatureChart() {
+function axisProps(colors: ChartColors) {
+  return {
+    tick: { fill: colors.faint, fontSize: 11 },
+    tickLine: false,
+    axisLine: false,
+  } as const;
+}
+
+function SingleSeriesChart({
+  data,
+  colors,
+  dataKey,
+  color,
+  unit,
+  domain,
+  band,
+}: {
+  data: HistoricalPoint[];
+  colors: ChartColors;
+  dataKey: keyof HistoricalPoint;
+  color: string;
+  unit: string;
+  domain: [number | "auto", number | "auto"];
+  band?: [number, number];
+}) {
+  const gradId = `grad-${dataKey}`;
   return (
-    <ChartCard title="Temperature" subtitle="°C over time — indirect indicator of microbial activity">
-      {(data) => (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
-            <defs>
-              <linearGradient id="tempGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a2e1a" />
-            <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="temperature"
-              stroke="#22c55e"
-              strokeWidth={2}
-              fill="url(#tempGrad)"
-              dot={false}
-              activeDot={{ r: 5, fill: "#22c55e", strokeWidth: 0 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+    <AreaChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity={0.12} />
+          <stop offset="100%" stopColor={color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <CartesianGrid vertical={false} stroke={colors.line} />
+      {band && <ReferenceArea y1={band[0]} y2={band[1]} fill={colors.accent} fillOpacity={0.06} stroke="none" />}
+      <XAxis dataKey="time" {...axisProps(colors)} interval="preserveStartEnd" minTickGap={40} />
+      <YAxis {...axisProps(colors)} domain={domain} width={48} />
+      <Tooltip content={<ChartTooltip units={{ [dataKey]: unit }} />} cursor={{ stroke: colors.line }} />
+      <Area
+        type="monotone"
+        dataKey={dataKey}
+        stroke={color}
+        strokeWidth={1.75}
+        fill={`url(#${gradId})`}
+        dot={false}
+        activeDot={{ r: 3.5, fill: color, strokeWidth: 0 }}
+        isAnimationActive={false}
+      />
+    </AreaChart>
+  );
+}
+
+export function TemperatureChart({ history }: { history: History | null }) {
+  const t = THRESHOLDS.temperature;
+  return (
+    <ChartCard title="Temperature" subtitle={`°C · shaded band = optimal ${t.optimal_low}–${t.optimal_high} °C`} history={history}>
+      {(data, c) => (
+        <SingleSeriesChart data={data} colors={c} dataKey="temperature" color={c["c-temp"]} unit=" °C"
+          domain={[30, 75]} band={[t.optimal_low, t.optimal_high]} />
       )}
     </ChartCard>
   );
 }
 
-export function MoistureChart() {
+export function MoistureChart({ history }: { history: History | null }) {
+  const m = THRESHOLDS.moisture;
   return (
-    <ChartCard title="Moisture" subtitle="% moisture level — optimal range 50–70%">
-      {(data) => (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
-            <defs>
-              <linearGradient id="moistGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a2e1a" />
-            <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} domain={[30, 90]} />
-            <Tooltip content={<CustomTooltip />} />
-            {/* Reference band for optimal range — shown via fill */}
-            <Area
-              type="monotone"
-              dataKey="moisture"
-              stroke="#38bdf8"
-              strokeWidth={2}
-              fill="url(#moistGrad)"
-              dot={false}
-              activeDot={{ r: 5, fill: "#38bdf8", strokeWidth: 0 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+    <ChartCard title="Moisture" subtitle={`% · shaded band = optimal ${m.optimal_low}–${m.optimal_high}%`} history={history}>
+      {(data, c) => (
+        <SingleSeriesChart data={data} colors={c} dataKey="moisture" color={c["c-moist"]} unit="%"
+          domain={[30, 90]} band={[m.optimal_low, m.optimal_high]} />
       )}
     </ChartCard>
   );
 }
 
-export function WeightChart() {
+export function WeightChart({ history }: { history: History | null }) {
   return (
-    <ChartCard title="Compost Weight" subtitle="kg — gradual reduction indicates decomposition progress">
-      {(data) => (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
-            <defs>
-              <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#a3e635" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#a3e635" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a2e1a" />
-            <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
-            <Tooltip content={<CustomTooltip />} />
-            <Area
-              type="monotone"
-              dataKey="weight"
-              stroke="#a3e635"
-              strokeWidth={2}
-              fill="url(#weightGrad)"
-              dot={false}
-              activeDot={{ r: 5, fill: "#a3e635", strokeWidth: 0 }}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+    <ChartCard title="Weight" subtitle="kg · steady decline means decomposition is progressing" history={history}>
+      {(data, c) => (
+        <SingleSeriesChart data={data} colors={c} dataKey="weight" color={c["c-weight"]} unit=" kg"
+          domain={["auto", "auto"]} />
       )}
     </ChartCard>
   );
 }
 
-export function GasChart() {
+export function GasChart({ history }: { history: History | null }) {
+  const colors = useChartColors();
   return (
-    <ChartCard title="Gas Levels" subtitle="ppm — CO₂, CH₄, NH₃, H₂S trends over time">
-      {(data) => (
-        <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 0, left: -10 }}>
-            <defs>
-              <linearGradient id="co2Grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="ch4Grad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1a2e1a" />
-            <XAxis dataKey="time" tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fill: "#475569", fontSize: 10 }} tickLine={false} axisLine={false} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend
-              wrapperStyle={{ fontSize: "11px", color: "#94a3b8", paddingTop: "8px" }}
-              formatter={(value) => (
-                <span style={{ color: "#94a3b8", fontSize: "11px", textTransform: "capitalize" }}>
-                  {value}
-                </span>
-              )}
-            />
-            <Area type="monotone" dataKey="co2" stroke="#22c55e" strokeWidth={1.5} fill="url(#co2Grad)" dot={false} />
-            <Area type="monotone" dataKey="methane" stroke="#f59e0b" strokeWidth={1.5} fill="url(#ch4Grad)" dot={false} />
-            <Area type="monotone" dataKey="ammonia" stroke="#a78bfa" strokeWidth={1.5} fill="none" dot={false} />
-            <Area type="monotone" dataKey="h2s" stroke="#f87171" strokeWidth={1.5} fill="none" dot={false} />
-          </AreaChart>
-        </ResponsiveContainer>
+    <ChartCard
+      title="Gas levels"
+      subtitle="ppm · CO₂ on the right axis"
+      history={history}
+      legend={[
+        { label: "CO₂", color: colors["c-co2"] },
+        { label: "CH₄", color: colors["c-ch4"] },
+        { label: "NH₃", color: colors["c-nh3"] },
+        { label: "H₂S", color: colors["c-h2s"] },
+      ]}
+    >
+      {(data, c) => (
+        <LineChart data={data} margin={{ top: 4, right: -8, bottom: 0, left: -18 }}>
+          <CartesianGrid vertical={false} stroke={c.line} />
+          <XAxis dataKey="time" {...axisProps(c)} interval="preserveStartEnd" minTickGap={40} />
+          <YAxis yAxisId="small" {...axisProps(c)} width={48} />
+          <YAxis yAxisId="co2" orientation="right" {...axisProps(c)} width={48} />
+          <Tooltip content={<ChartTooltip units={GAS_UNITS} />} cursor={{ stroke: c.line }} />
+          <Line yAxisId="co2" type="monotone" dataKey="co2" stroke={c["c-co2"]} strokeWidth={1.75} dot={false} isAnimationActive={false} />
+          <Line yAxisId="small" type="monotone" dataKey="methane" stroke={c["c-ch4"]} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          <Line yAxisId="small" type="monotone" dataKey="ammonia" stroke={c["c-nh3"]} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          <Line yAxisId="small" type="monotone" dataKey="h2s" stroke={c["c-h2s"]} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        </LineChart>
       )}
     </ChartCard>
   );

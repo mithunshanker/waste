@@ -1,21 +1,81 @@
 @import "tailwindcss";
 
+/* ─── Design tokens ─────────────────────────────────────────── */
 :root {
-  --green-900: #14532d;
-  --green-800: #166534;
-  --green-700: #15803d;
-  --green-600: #16a34a;
-  --green-500: #22c55e;
-  --green-400: #4ade80;
-  --green-300: #86efac;
-  --lime-400: #a3e635;
-  --lime-500: #84cc16;
-  --amber-500: #f59e0b;
-  --red-500: #ef4444;
+  --surface: #fafaf9;
+  --card: #ffffff;
+  --subtle: #f5f5f4;
+  --line: #e7e5e4;
+  --fg: #1c1917;
+  --muted: #78716c;
+  --faint: #a8a29e;
+  --accent: #16a34a;
+  --accent-soft: #dcfce7;
+  --on-accent: #ffffff;
+
+  --ok: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
+  --info: #2563eb;
+
+  /* Chart series */
+  --c-temp: #ea580c;
+  --c-moist: #0284c7;
+  --c-weight: #16a34a;
+  --c-co2: #16a34a;
+  --c-ch4: #d97706;
+  --c-nh3: #7c3aed;
+  --c-h2s: #e11d48;
+
+  color-scheme: light;
 }
 
-* {
-  box-sizing: border-box;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #0c0c0b;
+    --card: #161615;
+    --subtle: #1f1f1d;
+    --line: #292927;
+    --fg: #f5f5f4;
+    --muted: #a8a29e;
+    --faint: #78716c;
+    --accent: #4ade80;
+    --accent-soft: #14532d;
+    --on-accent: #052e16;
+
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --bad: #f87171;
+    --info: #60a5fa;
+
+    --c-temp: #fb923c;
+    --c-moist: #38bdf8;
+    --c-weight: #4ade80;
+    --c-co2: #4ade80;
+    --c-ch4: #fbbf24;
+    --c-nh3: #a78bfa;
+    --c-h2s: #fb7185;
+
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-subtle: var(--subtle);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--on-accent);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
@@ -23,97 +83,37 @@ html {
 }
 
 body {
-  background-color: #0f1a0f;
-  color: #e2e8f0;
-  font-family: 'Inter', sans-serif;
+  background-color: var(--surface);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1a2e1a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #22c55e44;
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #22c55e88;
-}
-
-/* Pulse animation for LIVE badge */
-@keyframes pulse-green {
+/* Live indicator */
+@keyframes live-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.35; }
 }
 
-.pulse-green {
-  animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+.live-dot {
+  animation: live-pulse 2s ease-in-out infinite;
 }
 
-/* Glow effect */
-@keyframes glow {
-  0%, 100% { box-shadow: 0 0 5px #22c55e44, 0 0 10px #22c55e22; }
-  50% { box-shadow: 0 0 15px #22c55e66, 0 0 30px #22c55e33; }
-}
-
-.glow-green {
-  animation: glow 3s ease-in-out infinite;
-}
-
-/* Chart tooltip custom styles */
-.recharts-tooltip-wrapper {
-  z-index: 100;
-}
-
-/* Smooth number transitions */
-.sensor-value {
-  transition: all 0.5s ease-in-out;
-}
-
-/* Card hover effect */
-.card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(34, 197, 94, 0.15);
-}
-
-/* Progress bar animation */
-@keyframes progress-fill {
-  from { width: 0%; }
-  to { width: var(--progress-width); }
-}
-
-/* Fade in animation */
+/* Fade in */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .fade-in {
-  animation: fadeIn 0.4s ease-out forwards;
+  animation: fadeIn 0.3s ease-out both;
 }
 
-/* Radial progress */
-.radial-progress {
-  background: conic-gradient(#22c55e var(--progress-deg), #1a2e1a 0deg);
+.recharts-tooltip-wrapper {
+  z-index: 20;
 }
 
-/* Status indicator blink */
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-.status-online {
-  animation: blink 2s step-end infinite;
+.recharts-surface:focus,
+.recharts-wrapper:focus {
+  outline: none;
 }
